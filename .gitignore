@@ -1,0 +1,14 @@
+# node modules
+node_modules/
+
+# логи
+logs/
+*.log
+
+# временные файлы
+*.tmp
+*.swp
+.DS_Store
+
+# системные
+.env
