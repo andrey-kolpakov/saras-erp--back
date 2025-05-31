@@ -35,6 +35,8 @@ app.post('/upload', upload.array('files', 10), async (req, res) => {
         return res.status(400).json({ error: 'Файлы не найдены' });
     }
 
+    console.log(req.files);
+
     const isAvatar = req.body.avatar === 'true'; // флаг
     const avatarsDir = path.join(__dirname, 'uploads', 'avatars');
     const uploadDir = path.join(__dirname, 'uploads');
