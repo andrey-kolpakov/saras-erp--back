@@ -27,19 +27,68 @@ app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ⬇⬇⬇ множественная загрузка
-app.post('/upload', upload.array('files', 10), (req, res) => {
+const sharp = require('sharp');
+
+// множественная загрузка с флагом avatar
+app.post('/upload', upload.array('files', 10), async (req, res) => {
     if (!req.files || req.files.length === 0) {
         return res.status(400).json({ error: 'Файлы не найдены' });
     }
 
-    const response = req.files.map(file => ({
-        path: `/uploads/${file.filename}`,
-        filename: file.filename,
-        originalname: file.originalname
-    }));
+    const isAvatar = req.body.avatar === 'true'; // флаг
+    const avatarsDir = path.join(__dirname, 'uploads', 'avatars');
+    const uploadDir = path.join(__dirname, 'uploads');
 
-    res.json(response);
+    if (isAvatar && !fs.existsSync(avatarsDir)) {
+        fs.mkdirSync(avatarsDir, { recursive: true });
+    }
+
+    const processedFiles = [];
+
+    for (const file of req.files) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const isImage = ['.jpg', '.jpeg', '.png'].includes(ext);
+
+        if (isAvatar && isImage) {
+            const avatarFilename = `avatar-${Date.now()}-${file.filename}.jpg`;
+            const avatarPath = path.join(avatarsDir, avatarFilename);
+
+            try {
+                await sharp(file.path)
+                    .resize(256, 256, {
+                        fit: 'cover',
+                        position: 'center'
+                    })
+                    .jpeg({ quality: 80 })
+                    .toFile(avatarPath);
+
+                fs.unlinkSync(file.path); // удаляем оригинал
+
+                processedFiles.push({
+                    path: `/uploads/avatars/${avatarFilename}`,
+                    filename: avatarFilename,
+                    originalname: file.originalname
+                });
+            } catch (err) {
+                console.error('Ошибка обработки аватарки:', err);
+                processedFiles.push({
+                    error: 'Ошибка обработки аватарки',
+                    originalname: file.originalname
+                });
+            }
+        } else {
+            // обычный файл
+            processedFiles.push({
+                path: `/uploads/${file.filename}`,
+                filename: file.filename,
+                originalname: file.originalname
+            });
+        }
+    }
+
+    res.json(processedFiles);
 });
+
 
 // удаление файла
 app.delete('/file/:filename', (req, res) => {
